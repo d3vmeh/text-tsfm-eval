@@ -1,0 +1,11 @@
+# Generated files: rebuild prompts with prompt_builder.py, results come from runs
+prompts/
+results/
+replies/
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+# Local tool files and private notes
+CLAUDE.md
+.claude/
