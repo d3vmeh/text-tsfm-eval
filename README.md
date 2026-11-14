@@ -17,6 +17,7 @@ This folder expects the dataset repo beside it:
 - `prompt_builder.py`: makes two prompts per window, `with_context` and `no_context`. They differ only in the context block, and neither contains the hidden answers.
 - `reply_parser.py`: turns a model reply into the forecast values, or gives a reason it can't be used.
 - `model_runner.py`: sends each prompt to a local llama.cpp server, reads the reply with the parser and writes the forecasts file. It can be stopped and resumed, saves every raw reply, and records the settings used.
+- `api_runner.py`: the same job as `model_runner.py`, for a hosted API that speaks the OpenAI-style chat format, such as OpenRouter. Same output layout, so the scorer works on both. It has a cost limit and reads the key from `OPENROUTER_API_KEY` or a `.env` file.
 - `scorer.py`: scores forecasts against the hidden answers and compares the two conditions.
 - `chronos_baseline.py`: forecasts the same windows with Chronos-2, a forecasting model that reads numbers only. A baseline, not part of the text comparison.
 - `compare_forecasts.py`: puts several forecast sets side by side on exactly the same windows, for example the baseline next to an LLM run.
@@ -30,10 +31,11 @@ This folder expects the dataset repo beside it:
     python3 test_scorer.py
     python3 prompt_builder.py ../text-tsfm-benchmarks/outputs/cik_format/AECI_validation.jsonl --out prompts/AECI_validation_prompts.jsonl
     python3 test_model_runner.py
+    python3 test_api_runner.py
     python3 model_runner.py prompts/AECI_validation_prompts.jsonl --run validation --temperature 1.0
     python3 scorer.py ../text-tsfm-benchmarks/outputs/cik_format/AECI_validation.jsonl results/validation/forecasts.jsonl --out results/validation/score
 
-Needs Python 3 and numpy. `test_scorer.py` checks the scorer against the dataset's own baselines if the dataset has been built.
+Needs Python 3 and numpy. `api_runner.py` also needs `requests`. `test_scorer.py` checks the scorer against the dataset's own baselines if the dataset has been built.
 
 ## Model runner
 
