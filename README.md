@@ -21,6 +21,7 @@ This folder expects the dataset repo beside it:
 
 ## Run
 
+    python3 test_prompt_builder.py
     python3 test_reply_parser.py
     python3 test_scorer.py
     python3 prompt_builder.py ../text-tsfm-benchmarks/outputs/cik_format/AECI_validation.jsonl --out prompts/AECI_validation_prompts.jsonl

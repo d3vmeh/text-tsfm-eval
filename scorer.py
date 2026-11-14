@@ -115,6 +115,14 @@ def score(records, forecast_lines):
     return report, per_window
 
 
+def csv_safe(value):
+    """Spreadsheets run a text cell that starts with = + - or @ as a formula. Names and ids come from the
+    records file, so such text gets a leading apostrophe. Numbers are left alone."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
+
+
 def print_report(rep):
     print(f"Windows in records: {rep['windows_in_records']}")
     for c in CONDITIONS:
@@ -156,7 +164,7 @@ def main():
                 bl = baselines(records[key])
                 for c in CONDITIONS:
                     if c in per_window[key]:
-                        r = per_window[key][c]; w.writerow([key[0], key[1], c, r["n_samples"], r["mae"], r.get("crps", ""), r.get("rcrps", ""), bl[0], bl[1]])
+                        r = per_window[key][c]; w.writerow([csv_safe(key[0]), csv_safe(key[1]), c, r["n_samples"], r["mae"], r.get("crps", ""), r.get("rcrps", ""), bl[0], bl[1]])
         print(f"\nWrote {out}_report.json and {out}_per_window.csv")
 
 

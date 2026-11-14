@@ -11,7 +11,7 @@ reproduced so results are comparable with the paper.
 Usage:
   python3 prompt_builder.py RECORDS.jsonl --out prompts/NAME_prompts.jsonl [--examples examples/]
 """
-import argparse, json
+import argparse, json, re
 from pathlib import Path
 
 import numpy as np
@@ -94,6 +94,18 @@ def build_entries(record):
                "messages": make_messages(record, use_context), "future_timestamps": future_timestamps(record)}
 
 
+def example_path(examples_dir, record, condition):
+    """Where an example prompt is saved. Record fields are data, so they are cleaned before being used in
+    a file name, and the result must stay inside the examples folder."""
+    safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", str(record["name"])).lstrip(".") or "record"
+    safe_condition = re.sub(r"[^A-Za-z0-9_-]", "_", str(condition))
+    folder = Path(examples_dir).resolve()
+    dest = (folder / f"{safe_name}_{int(record['seed'])}_{safe_condition}.txt").resolve()
+    if dest.parent != folder:
+        raise ValueError(f"refusing to write outside {folder}")
+    return dest
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("records"); ap.add_argument("--out", required=True); ap.add_argument("--examples")
@@ -108,7 +120,7 @@ def main():
                 f.write(json.dumps(entry) + "\n"); n += 1
                 if args.examples and i == 0:
                     Path(args.examples).mkdir(parents=True, exist_ok=True)
-                    (Path(args.examples) / f"{rec['name']}_{rec['seed']}_{entry['condition']}.txt").write_text(entry["messages"][1]["content"])
+                    example_path(args.examples, rec, entry["condition"]).write_text(entry["messages"][1]["content"])
     print(f"{len(records)} records -> {n} prompts in {args.out}")
 
 

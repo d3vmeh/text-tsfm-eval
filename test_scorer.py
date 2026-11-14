@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 import numpy as np
-from scorer import load_records, score, crps, paired_stats
+from scorer import load_records, score, crps, paired_stats, csv_safe
 
 HERE = Path(__file__).resolve().parent
 VALIDATION = HERE / "../text-tsfm-benchmarks/outputs/cik_format/AECI_validation.jsonl"
@@ -57,6 +57,9 @@ def main():
     a, b = np.array([10, 12, 9, 15, 11.0]), np.array([8, 11, 9, 10, 10.0])
     p1, p2 = paired_stats(a, b), paired_stats(a, b)
     check("the 95% interval is reproducible and contains the mean difference", p1 == p2 and p1["difference_ci95"][0] <= p1["mean_difference"] <= p1["difference_ci95"][1])
+    # 7b. Text that a spreadsheet would run as a formula is neutralized; numbers and normal names are untouched.
+    check("formula-like text is neutralized in the CSV", csv_safe("=HYPERLINK(1)") == "'=HYPERLINK(1)" and csv_safe("@x") == "'@x" and csv_safe("-1+1") == "'-1+1"
+          and csv_safe("CarbonCastAECI") == "CarbonCastAECI" and csv_safe(-12.5) == -12.5 and csv_safe(20211001) == 20211001)
     # 8. Real data: baselines pushed through the scorer must reproduce the dataset build's own numbers.
     if VALIDATION.exists() and BUILD_REPORT.exists():
         real = load_records(VALIDATION); want = json.loads(BUILD_REPORT.read_text())["splits"]["validation"]
