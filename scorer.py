@@ -25,6 +25,7 @@ from pathlib import Path
 import numpy as np
 
 CONDITIONS = ("with_context", "no_context")
+MIN_WINDOWS_FOR_INTERVAL = 20   # below this, a resampled interval is not trustworthy
 
 
 def load_records(path):
@@ -76,6 +77,7 @@ def paired_stats(a_without, a_with, n_boot=10000, seed=0):
         lo, hi = np.percentile(means, [2.5, 97.5])
         out["difference_ci95"] = [float(lo), float(hi)]
         out["ci_excludes_zero"] = bool(lo > 0 or hi < 0)
+        out["interval_reliable"] = bool(len(d) >= MIN_WINDOWS_FOR_INTERVAL)
     return out
 
 
@@ -139,7 +141,9 @@ def print_report(rep):
         print(f"  difference:   {m['mean_difference']:+.4f} ({m['percent_improvement']:+.1f}%; positive means text helped)"
               + (f", 95% interval {ci[0]:+.4f} to {ci[1]:+.4f}" if ci else ""))
         print(f"  windows: {m['windows_improved']} better with text, {m['windows_worse']} worse, {m['windows_tied']} tied")
-        if ci:
+        if ci and m["windows"] < MIN_WINDOWS_FOR_INTERVAL:
+            print(f"  only {m['windows']} windows were compared: too few for the interval to mean much, so treat this as a check that things run, not as a result")
+        elif ci:
             print("  the interval " + ("excludes zero, so the difference is unlikely to be chance" if m["ci_excludes_zero"] else "includes zero, so this could be chance"))
     if "baselines_on_paired_windows" in rep:
         b = rep["baselines_on_paired_windows"]

@@ -3,7 +3,7 @@
 How the model runner was built, how it works, how each run was made, and what was learned.
 Run outputs live in `results/` and `replies/`, which git ignores, so this file is the lasting record.
 
-Last updated: 2026-11-14, while the two validation runs were still going. Section 6 says which numbers are final.
+Last updated: 2026-11-14. The two local validation runs were still going when section 6 was first written; the hosted runs at the end of section 6 are final. Section 6 says which numbers are final.
 
 ## 1. What the runner does
 
@@ -183,6 +183,71 @@ Chronos-2 is a forecasting model from Amazon that reads numbers, not text. It wa
 Not known: whether Chronos-2's training data included CarbonCast or the EIA grid data it comes from. If it did, "zero-shot" would not be accurate.
 
 Not done: giving Chronos-2 the weather forecast as numeric covariates. That would show whether the information in the text helps a model when it arrives as numbers. It needs hourly covariates built in the dataset repo, with the same leak checks.
+
+### Hosted runs through OpenRouter (2026-11-14, on the Mac, with `api_runner.py`)
+
+These use a hosted API, so there is no server to launch. Settings common to all: temperature 1.0, base seed 0, one sample, up to 3 attempts.
+
+**Three-way run, final.** Run name `validation3_or_qwen38_27b_think6000`. Model `qwen/qwen3.8-27b`, provider pinned to DeepInfra (bf16), thinking limit 6,000 tokens, max output 40,000, 40 requests at once (16 for the first 40 prompts). Prompts: `prompts/AECI_validation_3cond_prompts.jsonl`, 267 prompts, three per validation window:
+
+- `no_context`: past values only
+- `with_context_original`: the weather text as first built (the guide's reading of the weather file)
+- `with_context`: the weather text from the `one_day_later` build in the dataset repo
+
+The no-text prompt is identical in both builds. All 267 prompts got a forecast. 277 replies, 10 rejected (8 empty, 2 with missing hours; 8 of the 10 were in the no-text version), no network errors, reported cost $5.80. About 10,000 output tokens and 4 to 5 minutes per reply.
+
+| On all 89 validation windows | MAE |
+|---|---|
+| No text | 56.66 |
+| Original weather text | 60.99 |
+| Corrected weather text | 55.21 |
+| Last-value baseline | 60.59 |
+| Daily-repeat baseline | 62.36 |
+
+| Comparison | Difference in MAE | 95% interval | Windows better |
+|---|---|---|---|
+| Corrected text vs no text | 1.44 lower (2.5%) | -2.83 to +6.01 | 49 of 89 |
+| Original text vs no text | 4.34 higher (7.7% worse) | -9.05 to +0.31 | 42 of 89 |
+| Corrected text vs original text | 5.78 lower (9.5%) | +1.35 to +10.38 | 59 of 89 |
+
+Only the last comparison is clear of chance. The score table is saved in `results/validation3_or_qwen38_27b_think6000/three_way_score.txt`.
+
+**Pilots and a stopped run.**
+
+- `pilot3_or_qwen38_27b_think6000`: the same three versions on the 5 pilot windows, 15 of 15 parsed, $0.36.
+- `pilot_or_qwen38max_think6000`: `qwen/qwen3.8-max-0902` (Alibaba is its only provider), 10 pilot prompts, 9 with a forecast, $0.69 reported. Requests were not streamed and several timed out.
+- `validation_or_qwen38max_uncapped`: stopped after 16 replies. With no thinking limit this model wrote 28,000 to 40,000 thinking tokens per reply, and 9 of 16 hit the 40,000 output limit with no forecast. $4.09 reported. Do not run this model without `--reasoning-max-tokens`.
+
+**Learned.**
+
+- A reply can take over ten minutes. Read it as a stream, or the connection times out or drops.
+- The thinking limit is loose but real: with 6,000 requested, thinking ran 1,900 to 17,300 tokens; without it, 30,000 and more.
+- A request that times out on this side may still be billed. The runner's cost total only counts replies that came back.
+- A laptop that sleeps (lid closed) kills every request in flight. `caffeinate -i` does not prevent lid-close sleep.
+- Pin one provider. Different hosts serve the same model at different precision.
+
+### Chronos-2 with weather covariates (2026-11-14, on the Mac, final)
+
+Script: `chronos_covariates.py`. Covariates: hourly forecast series from `scripts/aeci_covariates.py` in the dataset repo, given for the 504 past hours and the 72 future hours, built under both readings of the weather file (`guide` = as stamped, `one_day_later`). Same pinned snapshot as the baseline (`29ec3766`), chronos-forecasting 2.3.2, CPU, one window per call, cross-learning off, median forecast. The baseline was rerun here as `validation_chronos2_mac` and gives the same 50.55.
+
+| On all 89 validation windows | MAE |
+|---|---|
+| Chronos-2, past values only | 50.55 |
+| + wind, as stamped | 48.80 |
+| + wind, one day later | 47.53 |
+| + wind, solar, temperature, precipitation, as stamped | 50.88 |
+| + wind, solar, temperature, precipitation, one day later | 47.98 |
+| LLM (Qwen3.8-27B), no text | 56.66 |
+| LLM, corrected text | 55.21 |
+
+| Comparison | Difference in MAE | 95% interval | Windows better |
+|---|---|---|---|
+| Wind, one day later vs past values only | 3.01 lower (6.0%) | +0.52 to +5.42 | 59 of 89 |
+| All weather, one day later vs past values only | 2.57 lower (5.1%) | -0.52 to +5.72 | 61 of 89 |
+| All weather, one day later vs as stamped | 2.91 lower (5.7%) | +1.11 to +4.70 | 65 of 89 |
+| Wind, as stamped vs past values only | 1.74 lower (3.5%) | -0.68 to +4.07 | 53 of 89 |
+
+Run names: `validation_chronos2_cov_<alignment>_<wind|all>`. Scores saved in `results/chronos_covariates_score.txt`. Each run takes 5 to 8 seconds.
 
 ## 7. Mistakes made, so they are not repeated
 

@@ -20,6 +20,7 @@ This folder expects the dataset repo beside it:
 - `api_runner.py`: the same job as `model_runner.py`, for a hosted API that speaks the OpenAI-style chat format, such as OpenRouter. Same output layout, so the scorer works on both. It has a cost limit and reads the key from `OPENROUTER_API_KEY` or a `.env` file.
 - `scorer.py`: scores forecasts against the hidden answers and compares the two conditions.
 - `chronos_baseline.py`: forecasts the same windows with Chronos-2, a forecasting model that reads numbers only. A baseline, not part of the text comparison.
+- `chronos_covariates.py`: Chronos-2 again, this time also given the weather forecast as hourly numeric covariates built by the dataset repo. Shows whether the weather information helps a forecasting model.
 - `compare_forecasts.py`: puts several forecast sets side by side on exactly the same windows, for example the baseline next to an LLM run.
 - `examples/`: one full prompt of each kind.
 - `RUN_LOG.md`: how each run was made (server launch flags, settings), the runs so far, and what was learned. Read it before a new run.
@@ -32,6 +33,7 @@ This folder expects the dataset repo beside it:
     python3 prompt_builder.py ../text-tsfm-benchmarks/outputs/cik_format/AECI_validation.jsonl --out prompts/AECI_validation_prompts.jsonl
     python3 test_model_runner.py
     python3 test_api_runner.py
+    python3 test_chronos_covariates.py
     python3 model_runner.py prompts/AECI_validation_prompts.jsonl --run validation --temperature 1.0
     python3 scorer.py ../text-tsfm-benchmarks/outputs/cik_format/AECI_validation.jsonl results/validation/forecasts.jsonl --out results/validation/score
 
